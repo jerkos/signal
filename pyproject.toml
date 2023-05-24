@@ -24,3 +24,11 @@ dev = [
     "coverage>=7.2.5",
     "assertpy>=1.1",
 ]
+
+[tool.pdm.scripts]
+black = {cmd = "black ."}
+isort = {cmd = "isort . --profile black"}
+all = {composite = ["isort", "black"]}
+
+
+
