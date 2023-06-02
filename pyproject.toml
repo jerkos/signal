@@ -29,6 +29,9 @@ dev = [
 black = {cmd = "black ."}
 isort = {cmd = "isort . --profile black"}
 all = {composite = ["isort", "black"]}
+test = {cmd = "pytest --capture=tee-sys"}
+coverage = {shell = "coverage run -m pytest --capture=tee-sys && coverage report -m"}
+
 
 
 

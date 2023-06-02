@@ -1,12 +1,18 @@
 import asyncio
+import dataclasses
 import logging
+import typing
 from typing import Any, Callable
+
+if typing.TYPE_CHECKING:
+    from src.signal import Signal  # pragma: no cover
 
 AnyFunc = Callable[[Any], Any]
 
 
-def _exec_sync(fn: AnyFunc, *args, **kwargs) -> Any:
+def exec_sync(fn: AnyFunc, *args, **kwargs) -> Any:
     """execute a function synchronously"""
+    print("Running :", fn)
     try:
         return fn(*args, **kwargs)
     except Exception as e:
@@ -14,7 +20,7 @@ def _exec_sync(fn: AnyFunc, *args, **kwargs) -> Any:
         return None
 
 
-async def _exec_async(
+async def exec_async(
     fn: AnyFunc,
     *args,
     **kwargs,
@@ -45,3 +51,24 @@ def is_bound_to(fn: AnyFunc, obj: Any) -> bool:
     """check if a function is bound to a specific object"""
     # noinspection PyUnresolvedReferences
     return is_bound(fn) and fn.__self__ is obj
+
+
+@dataclasses.dataclass
+class FnInformation:
+    fn: AnyFunc | None = None
+    depends_on: set[str] | None = None
+
+
+def get_registered_methods(
+    obj: Any, signal: "Signal"
+) -> typing.Iterator[tuple[str, FnInformation]]:
+    """get all registered methods of an object for a specific signal"""
+    for m in dir(obj):
+        method = getattr(obj, m)
+        is_registered_method = hasattr(method, f"__{signal.name}_event__")
+        if method is None or not is_registered_method:
+            continue
+        events = getattr(method, f"__{signal.name}_event__")
+        depends_on = getattr(method, f"__{signal.name}_depends_on__")
+        for event in events:
+            yield event, FnInformation(method, depends_on)
