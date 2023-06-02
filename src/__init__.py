@@ -1,3 +1,3 @@
-from src.signal import Signal
+from src.signal import PathType, Signal
 
-__all__ = ["Signal"]
+__all__ = ["Signal", "PathType"]

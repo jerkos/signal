@@ -165,13 +165,14 @@ above:
 instance1 = MyClass('instance1')
 instance2 = MyClass('instance2')
 
-signal.fire(events=['my_event'], receiver=instance1)(data='Hello World!')
+signal.fire(events=['my_event'], receiver=[instance1])(data='Hello World!')
 
 # only instance1 receives the signal
 ```
 
 You can also specify dependencies between events of the same
-signal:
+signal, with the code above. You can specify if you want to use
+the result of the previous event as a parameter of the next event:
 
 ```python
 
@@ -206,7 +207,8 @@ You can also get all path of dependencies between events of the same
 signal:
 
 ```python
-events_to_fire_in_order = signal.get_event_path("fn_event")
+# options to get the longest path too
+events_to_fire_in_order = signal.get_event_path("fn_event", path_type=PathType.SHORTEST)
 print(events_to_fire_in_order)
 # prints:
 #[['my_cls_event', 'fn_event']]
