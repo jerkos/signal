@@ -1,5 +1,11 @@
+import asyncio
+import functools
+import multiprocessing
+import time
+from concurrent.futures import ProcessPoolExecutor
 from unittest.mock import Mock
 
+import pytest
 from assertpy import assert_that
 
 from src.signal import Signal
@@ -97,33 +103,31 @@ def test_receiver():
     assert_that(toto2.x).is_equal_to(2)
 
 
-#
-#
-# @pytest.mark.asyncio
-# async def test_async_cb():
-#     async def a():
-#         await asyncio.sleep(0.1)
-#         print("a")
-#
-#     s = Signal("async signal")
-#     s.register(a)
-#     await s.fire_async()
-#
-#     def b():
-#         time.sleep(0.1)
-#         print("b")
-#
-#     s.register(b)
-#     await s.fire_async()
-#
-#
-# def test_partial_func():
-#     def a(x, y):
-#         return x + y
-#
-#     s = Signal("partial signal")
-#     s.register(functools.partial(a, x=1))
-#     assert_that(s.fire(y=1)).contains(2)
+@pytest.mark.asyncio
+async def test_async_cb():
+    async def a():
+        await asyncio.sleep(0.1)
+        print("a")
+
+    s = Signal("async signal")
+    s.register(a)
+    await s.fire_async()()
+
+    def b():
+        time.sleep(0.1)
+        print("b")
+
+    s.register(b)
+    await s.fire_async()()
+
+
+def test_partial_func():
+    def a(x, y):
+        return x + y
+
+    s = Signal("partial signal")
+    s.register(functools.partial(a, x=1))
+    assert_that(s.fire()(y=1)).contains(2)
 
 
 def test_tag():
@@ -245,3 +249,50 @@ def test_not_name_signal():
     s = Signal()
     s2 = Signal()
     assert_that(s).is_not_same_as(s2)
+
+
+mp_signal = Signal()
+
+
+def mp_cb():
+    return "mp_cb"
+
+
+def in_mp(sig):
+    return sig.fire()()
+
+
+def test_mp_1():
+    mp_signal.register(mp_cb)
+
+    with multiprocessing.Pool(1) as p:
+        r = p.apply_async(in_mp, args=(mp_signal,))
+        p.close()
+        p.join()
+        assert_that(r.get()).is_equal_to(["mp_cb"])
+
+    with ProcessPoolExecutor(max_workers=1) as executor:
+        r = executor.submit(in_mp, mp_signal)
+        assert_that(r.result()).is_equal_to(["mp_cb"])
+
+
+mp_signal_2 = Signal()
+
+
+def mp_cb_2():
+    a = Tata(1, 2, 3)
+    a.increase_x()
+    print("called")
+    return "mp_cb"
+
+
+def in_mp_2(sig):
+    return sig.fire()()
+
+
+def test_mp_2():
+    p = multiprocessing.Process(target=mp_cb_2)
+    p.start()
+    time.sleep(1)
+    fire_tata.fire()()
+    p.join()

@@ -1,24 +1,17 @@
+import abc
+import asyncio
 import collections
 import enum
 import itertools
 import logging
 import uuid
 import weakref
-from typing import (
-    Any,
-    Generic,
-    Iterable,
-    Mapping,
-    Optional,
-    Protocol,
-    Type,
-    TypeVar,
-    final,
-)
+from typing import Any, Generic, Iterable, Mapping, Optional, Type, TypeVar, final
 
-from src.utils import (  # exec_async,
+from src.utils import (
     AnyFunc,
     FnInformation,
+    exec_async,
     exec_sync,
     get_registered_methods,
     is_bound,
@@ -175,10 +168,23 @@ class _Resolver:
                 self.resolve(dependency, new_path, _results)
 
 
-class _Fire(Protocol):
-    _signal: "Signal"
-    _events: list[str] | None = None
-    _receivers: list[Any] | None = None
+class _Fire(abc.ABC):
+    def __init__(
+        self,
+        signal: "Signal",
+        *,
+        events: list[str] | None = None,
+        chain: bool = False,
+        path_type: "Optional[PathType]" = None,
+        receivers: list[Any] | None = None,
+        resolver: _Resolver | None = None,
+    ):
+        self._signal = signal
+        self._events = events
+        self._receivers = receivers
+        self._resolver = resolver
+        self._chain = chain
+        self._path_type = path_type or PathType.SHORTEST
 
     def _iter_receivers(self, fns: list[FnInformation]) -> Iterable[FnInformation]:
         for receiver in self._receivers:
@@ -202,31 +208,22 @@ class _Fire(Protocol):
 
             yield from self._iter_receivers(fns)
 
+    def _get_chosen_path(self, event: str) -> list[str] | None:
+        path_for_event: list[list[str]] = []
+        self._resolver.resolve(event, None, path_for_event)
+        if not path_for_event:
+            return None
+        return sorted(
+            path_for_event, key=len, reverse=self._path_type == PathType.LONGEST
+        )[0]
+
 
 class _FireSync(_Fire):
     """
     A class that can be used to fire a signal synchronously
     """
 
-    def __init__(
-        self,
-        signal: "Signal",
-        *,
-        events: list[str] | None = None,
-        chain: bool = False,
-        path_type: "Optional[PathType]" = None,
-        receivers: list[Any] | None = None,
-        resolver: _Resolver | None = None,
-    ):
-        self._signal = signal
-        self._events = events
-        self._receivers = receivers
-        self._resolver = resolver
-        self._chain = chain
-        self._path_type = path_type or PathType.SHORTEST
-
     def _fire_raw(self, *args: Any, **kwargs: Any):
-        print(list(self._find_fn_to_fire()))
         return [exec_sync(fn.fn, *args, **kwargs) for fn in self._find_fn_to_fire()]
 
     def _fire(self, *args, **kwargs):
@@ -234,14 +231,10 @@ class _FireSync(_Fire):
             return self._fire_raw(*args, **kwargs)
 
         for event in self._events:
-            path_for_event: list[list[str]] = []
-            self._resolver.resolve(event, None, path_for_event)
-            if not path_for_event:
+            chosen_path = self._get_chosen_path(event)
+            if chosen_path is None:
                 continue
 
-            chosen_path = sorted(
-                path_for_event, key=len, reverse=self._path_type == PathType.LONGEST
-            )[0]
             result = None
             fn_args, fn_kwargs = args, kwargs
             for chosen_event in chosen_path:
@@ -254,6 +247,47 @@ class _FireSync(_Fire):
 
     def __call__(self, *args: Any, **kwargs: Any):
         return self._fire(*args, **kwargs)
+
+
+class _FireAsync(_Fire):
+    """
+    A class that can be used to fire a signal synchronously
+    """
+
+    async def _fire_raw(self, *args: Any, **kwargs: Any):
+        """
+        Fires the signal without any event resolution
+        Args:
+            *args:
+            **kwargs:
+
+        Returns:
+
+        """
+        return await asyncio.gather(
+            *[exec_async(fn.fn, *args, **kwargs) for fn in self._find_fn_to_fire()]
+        )
+
+    async def _fire(self, *args, **kwargs):
+        if not self._events:
+            return await self._fire_raw(*args, **kwargs)
+
+        for event in self._events:
+            chosen_path = self._get_chosen_path(event)
+            if chosen_path is None:
+                continue
+            result = None
+            fn_args, fn_kwargs = args, kwargs
+            for chosen_event in chosen_path:
+                result = await _FireAsync(
+                    self._signal, events=[chosen_event], resolver=self._resolver
+                )._fire_raw(*fn_args, **fn_kwargs)
+                if self._chain:
+                    fn_args, fn_kwargs = result, {}
+            return result
+
+    async def __call__(self, *args: Any, **kwargs: Any):
+        return await self._fire(*args, **kwargs)
 
 
 class PathType(enum.StrEnum):
@@ -272,7 +306,7 @@ class Signal:
 
     signal_by_name: dict[str, "Signal"] = weakref.WeakValueDictionary()
     fire_sync_cls = _FireSync
-    # fire_async_cls = _FireAsync
+    fire_async_cls = _FireAsync
 
     def __new__(cls, name: str | None = None):
         """create a new signal or return an existing one"""
@@ -334,6 +368,17 @@ class Signal:
     ) -> _FireSync | list[Any]:
         """fire an event synchronously"""
         return self.fire_sync_cls(
+            self, events=events, receivers=receivers, resolver=_Resolver(self)
+        )
+
+    def fire_async(
+        self,
+        *,
+        events: list[str] | None = None,
+        receivers: list[Any] | None = None,
+    ) -> _FireAsync | list[Any]:
+        """fire an event asynchronously"""
+        return self.fire_async_cls(
             self, events=events, receivers=receivers, resolver=_Resolver(self)
         )
 

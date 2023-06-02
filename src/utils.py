@@ -10,9 +10,8 @@ if typing.TYPE_CHECKING:
 AnyFunc = Callable[[Any], Any]
 
 
-def exec_sync(fn: AnyFunc, *args, **kwargs) -> Any:
+def exec_sync(fn: AnyFunc, *args: Any, **kwargs: Any) -> Any:
     """execute a function synchronously"""
-    print("Running :", fn)
     try:
         return fn(*args, **kwargs)
     except Exception as e:
@@ -20,11 +19,7 @@ def exec_sync(fn: AnyFunc, *args, **kwargs) -> Any:
         return None
 
 
-async def exec_async(
-    fn: AnyFunc,
-    *args,
-    **kwargs,
-) -> Any:
+async def exec_async(fn: AnyFunc, *args: Any, **kwargs: Any) -> Any:
     """execute a function asynchronously"""
     if not asyncio.iscoroutinefunction(fn):
         logging.info("Fn is not coroutine, running in a thread")
@@ -64,7 +59,11 @@ def get_registered_methods(
 ) -> typing.Iterator[tuple[str, FnInformation]]:
     """get all registered methods of an object for a specific signal"""
     for m in dir(obj):
-        method = getattr(obj, m)
+        try:
+            method = getattr(obj, m)
+        except AttributeError:
+            # getattr raises an AttributeError when not default provided
+            continue
         is_registered_method = hasattr(method, f"__{signal.name}_event__")
         if method is None or not is_registered_method:
             continue
