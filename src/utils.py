@@ -1,13 +1,13 @@
 import asyncio
 import dataclasses
 import logging
-import typing
+import typing as t
 from typing import Any, Callable
 
-if typing.TYPE_CHECKING:
-    from src.signal import Signal  # pragma: no cover
+if t.TYPE_CHECKING:
+    from src.base_signal import Signal  # pragma: no cover
 
-AnyFunc = Callable[[Any], Any]
+AnyFunc = Callable[..., Any]
 
 
 def exec_sync(fn: AnyFunc, *args: Any, **kwargs: Any) -> Any:
@@ -48,15 +48,31 @@ def is_bound_to(fn: AnyFunc, obj: Any) -> bool:
     return is_bound(fn) and fn.__self__ is obj
 
 
+T = t.TypeVar("T", bound=t.Type[Any])
+
+
+def singleton(cls: T) -> Callable[..., T]:
+    """singleton decorator"""
+    instance = None
+
+    def wrapper(*args: Any, **kwargs: Any) -> T:
+        nonlocal instance
+        if instance is None:
+            instance = cls(*args, **kwargs)
+        return instance
+
+    return wrapper
+
+
 @dataclasses.dataclass
 class FnInformation:
-    fn: AnyFunc | None = None
-    depends_on: set[str] | None = None
+    fn: AnyFunc
+    depends_on: set[str] = dataclasses.field(default_factory=set)
 
 
 def get_registered_methods(
     obj: Any, signal: "Signal"
-) -> typing.Iterator[tuple[str, FnInformation]]:
+) -> t.Iterator[tuple[str, FnInformation]]:
     """get all registered methods of an object for a specific signal"""
     for m in dir(obj):
         try:

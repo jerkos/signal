@@ -8,7 +8,9 @@ from unittest.mock import Mock
 import pytest
 from assertpy import assert_that
 
-from src.signal import Signal
+from src.base_signal import Signal
+from src.queueing.asyncio_queue import QueueBackend
+from src.queueing.backend import JobHandle
 
 fire_titi = Signal("fire_titi")
 
@@ -19,7 +21,7 @@ class Toto:
         self.x = x
         self.y = y
 
-    @fire_titi.wire.cls_cb
+    @fire_titi.wire.cls_fn
     def tata(self):
         self.x += 1
         print("hello", self.x)
@@ -35,12 +37,12 @@ class Tata:
         self.y = y
         self.z = z
 
-    @fire_tata.wire.on_event("tata")
+    @fire_tata.wire.cls_fn(on_event="tata")
     def increase_x(self):
         print("tata")
         self.x += 1
 
-    @fire_tata.wire.on_event("titi")
+    @fire_tata.wire.cls_fn(on_event="titi")
     def increase_y(self):
         print("titi")
         self.y += 1
@@ -111,7 +113,7 @@ async def test_async_cb():
 
     s = Signal("async signal")
     s.register(a)
-    await s.fire_async()()
+    await s.fire()()
 
     def b():
         time.sleep(0.1)
@@ -154,7 +156,7 @@ def test_reactive():
             print("on click")
             self.state.set({"name": "new name"})
 
-        @s.wire.cls_cb
+        @s.wire.cls_fn
         def render(self):
             print(
                 f"""
@@ -183,7 +185,7 @@ def test_resolver():
         def __init__(self, tire):
             self.tire = tire
 
-        @s.wire.on_event("Car", depends_on={"Wheel"})
+        @s.wire.method(on_event="Car", depends_on={"Wheel"})
         def car(self) -> "Car":
             return Car(self)
 
@@ -192,7 +194,7 @@ def test_resolver():
         def __init__(self, kind):
             self.kind = kind
 
-        @s.wire.on_event("Wheel")
+        @s.wire.method(on_event="Wheel")
         def wheel(self) -> "Wheel":
             return Wheel(self)
 
@@ -228,7 +230,7 @@ def test_classic():
 
     @on_end.wire.cls
     class Test2:
-        @on_end.wire.cls_cb
+        @on_end.wire.cls_fn
         def finalize(self, value):
             print(f"finalize {value}")
 
@@ -296,3 +298,31 @@ def test_mp_2():
     time.sleep(1)
     fire_tata.fire()()
     p.join()
+
+
+@pytest.mark.asyncio
+async def test_consumer():
+    s = Signal("async signal")
+    s.backend = QueueBackend(s)
+
+    @s.wire.fn(on_event="async signal")
+    async def a(value):
+        await asyncio.sleep(0.1)
+        print("function A: ", value)
+        return value + 10
+
+    @s.wire.fn(on_event="async custom signal")
+    async def b(value):
+        await asyncio.sleep(value)
+        print("function B: ", value)
+        return value + 100
+
+    s.backend.unwrap().default_consumer.start_in_thread()
+
+    job_handles: list[JobHandle] = await s.fire_with_backend(
+        events=["async custom signal"]
+    )(10)
+
+    # await job_handles[0].cancel()
+    print(await job_handles[0].wait_for_result())
+    print(job_handles[0]._result)

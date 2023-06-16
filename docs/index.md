@@ -98,6 +98,14 @@ signal.register(listener)
 signal.fire()(data='Hello World!')
 ```
 
+or using the function decorator:
+
+```python
+@signal.wire.fn
+def listener(data):
+    print(data)
+```
+
 A notable feature of this library, is that you can
 decorate a class and class methods as callbacks. So,
 all the instances of the decorated class will have

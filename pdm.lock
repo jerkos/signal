@@ -271,6 +271,12 @@ requires_python = ">=3.7"
 summary = "An extremely fast Python linter, written in Rust."
 
 [[package]]
+name = "rustshed"
+version = "0.5.0"
+requires_python = ">=3.10,<4.0"
+summary = "Rust types in Python."
+
+[[package]]
 name = "six"
 version = "1.16.0"
 requires_python = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*"
@@ -297,8 +303,8 @@ summary = "Filesystem events monitoring"
 [metadata]
 lock_version = "4.2"
 cross_platform = true
-groups = ["dev"]
-content_hash = "sha256:7563e25121729f9914ddd70e7573581212bb905eaea6c91a747ea4b682d1cc3e"
+groups = ["default", "dev"]
+content_hash = "sha256:28e7ee01ac478908f10881383be4f8c0045f834b3b0b0bc0686a7cdcee2d0035"
 
 [metadata.files]
 "assertpy 1.1" = [
@@ -767,6 +773,10 @@ content_hash = "sha256:7563e25121729f9914ddd70e7573581212bb905eaea6c91a747ea4b68
     {url = "https://files.pythonhosted.org/packages/d4/7c/1b8378f80962ff7d129a39785964710f92ebd9fa91e2444f00635ba3f510/ruff-0.0.269-py3-none-macosx_10_7_x86_64.whl", hash = "sha256:3569bcdee679045c09c0161fabc057599759c49219a08d9a4aad2cc3982ccba3"},
     {url = "https://files.pythonhosted.org/packages/f6/0c/eced078f3e0a4461b10dbf163160bd7a860378303a07253cbe8d1541fff4/ruff-0.0.269-py3-none-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl", hash = "sha256:56347da63757a56cbce7d4b3d6044ca4f1941cd1bbff3714f7554360c3361f83"},
     {url = "https://files.pythonhosted.org/packages/f8/17/90e1cb087a20e136da10b0187cf1bf25ac80da1c5fcb0256b683e6eee047/ruff-0.0.269-py3-none-manylinux_2_17_s390x.manylinux2014_s390x.whl", hash = "sha256:e131b4dbe798c391090c6407641d6ab12c0fa1bb952379dde45e5000e208dabb"},
+]
+"rustshed 0.5.0" = [
+    {url = "https://files.pythonhosted.org/packages/17/44/97759d5a1d604aab464f4f90f0f21cc9c801f66fda175616505a14ce50dd/rustshed-0.5.0-py3-none-any.whl", hash = "sha256:90545bc8a32fc46cbe93cdddc659c1b51cca0eba65863c90dbc31e0fdd1012c6"},
+    {url = "https://files.pythonhosted.org/packages/76/63/b262eb6219e6a175c55a4e56c13a056d0d1397e4546c34206ac3104667d1/rustshed-0.5.0.tar.gz", hash = "sha256:27bf1da6ee635864e94cdea83b2d514562585c28b5a94b3829e45952b6de4bf9"},
 ]
 "six 1.16.0" = [
     {url = "https://files.pythonhosted.org/packages/71/39/171f1c67cd00715f190ba0b100d606d440a28c93c7714febeca8b79af85e/six-1.16.0.tar.gz", hash = "sha256:1e61c37477a1626458e36f7b1d82aa5c9b094fa4802892072e49de9c60c4c926"},
